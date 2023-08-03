@@ -113,6 +113,10 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         return s_entrants[index];
     }
 
+    function getState() external view returns (State) {
+        return s_state;
+    }
+
     /**
      * @dev This is the function Chainlink Autoation calls to check if it should call performUpkeep
      */
