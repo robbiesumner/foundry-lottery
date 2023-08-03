@@ -16,7 +16,7 @@ contract RaffleTest is Test {
     address USER = makeAddr("user");
 
     function setUp() external {
-        raffle = new Raffle(ENTRANCE_FEE, INTERVAL);
+        raffle = new Raffle(ENTRANCE_FEE, INTERVAL, address(0), 0x0, 0, 0);
 
         vm.deal(USER, ENOUGH_BALANCE);
     }
