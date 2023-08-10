@@ -59,8 +59,6 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: ENTRANCE_FEE}();
     }
 
-    //! fails: no subsription
-    // TODO: create subscription
     function testRevertEnterWhenNotOpen() external {
         vm.prank(USER);
         raffle.enterRaffle{value: ENTRANCE_FEE}();
