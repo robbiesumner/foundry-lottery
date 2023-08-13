@@ -54,7 +54,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
     error Raffle__NotEnoughETHSent();
     error Raffle__TransferFailed();
     error Raffle__NotOpen();
-    error Raffle__UpKeepNotNeeded();
+    error Raffle__UpKeepNotNeeded(uint256 contractBalance, State state);
 
     /** Modifiers */
 
@@ -100,9 +100,28 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
     function performUpkeep(bytes calldata /* performData */) external override {
         (bool upkeepNeeded, ) = checkUpkeep("");
         if (!upkeepNeeded) {
-            revert Raffle__UpKeepNotNeeded();
+            revert Raffle__UpKeepNotNeeded(address(this).balance, s_state);
         }
         pickWinner();
+    }
+
+    // external view functions
+    /**
+     * @dev This is the function Chainlink Automation calls to check if it should call performUpkeep
+     */
+    function checkUpkeep(
+        bytes memory /* checkData */
+    )
+        public
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory /* performData */)
+    {
+        bool timeHasPassed = block.timestamp - s_lastDrawTime >= i_interval;
+        bool isOpen = s_state == State.Open;
+        bool hasBalance = address(this).balance > 0;
+
+        return (timeHasPassed && isOpen && hasBalance, "");
     }
 
     function getEntranceFee() external view returns (uint256) {
@@ -115,24 +134,6 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 
     function getState() external view returns (State) {
         return s_state;
-    }
-
-    /**
-     * @dev This is the function Chainlink Autoation calls to check if it should call performUpkeep
-     */
-    function checkUpkeep(
-        bytes memory /* checkData */
-    )
-        public
-        view
-        override
-        returns (bool upkeepNeeded, bytes memory /* performData */)
-    {
-        bool timeHasPassed = block.timestamp - i_interval >= s_lastDrawTime;
-        bool isOpen = s_state == State.Open;
-        bool hasBalance = address(this).balance > 0;
-
-        return (timeHasPassed && isOpen && hasBalance, "");
     }
 
     // public functions

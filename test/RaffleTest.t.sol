@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {Raffle} from "../src/Raffle.sol";
 import {DeployRaffle} from "../script/DeployRaffle.s.sol";
 
@@ -31,6 +31,18 @@ contract RaffleTest is Test {
         assert(raffle.getState() == Raffle.State.Open);
     }
 
+    modifier raffleEntered() {
+        vm.prank(USER);
+        raffle.enterRaffle{value: ENTRANCE_FEE}();
+        _;
+    }
+
+    modifier timePassed() {
+        vm.warp(block.timestamp + INTERVAL + 1);
+        vm.roll(block.number + 1);
+        _;
+    }
+
     /************************************************************** */
     /********************* .enterRaffle() ***************************/
     /************************************************************** */
@@ -41,10 +53,7 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: ENTRANCE_FEE - 1}();
     }
 
-    function testEntrantIsAddedToArray() external {
-        vm.prank(USER);
-        raffle.enterRaffle{value: ENTRANCE_FEE}();
-
+    function testEntrantIsAddedToArray() external raffleEntered {
         // expect entrant to be added to array
         assertEq(raffle.getEntrant(0), USER);
     }
@@ -59,13 +68,8 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: ENTRANCE_FEE}();
     }
 
-    function testRevertEnterWhenNotOpen() external {
-        vm.prank(USER);
-        raffle.enterRaffle{value: ENTRANCE_FEE}();
-
-        vm.warp(block.timestamp + INTERVAL + 1);
-        vm.roll(block.number + 1);
-        raffle.performUpkeep("");
+    function testRevertEnterWhenNotOpen() external raffleEntered timePassed {
+        raffle.performUpkeep(""); // this will change the state to Calculating
 
         vm.expectRevert(Raffle.Raffle__NotOpen.selector);
         raffle.enterRaffle{value: ENTRANCE_FEE}();
@@ -75,11 +79,10 @@ contract RaffleTest is Test {
     /********************* .checkUpkeep() ***************************/
     /************************************************************** */
 
-    function testCheckUpKeepReturnsFalseWhenItHasNoBalance() external {
-        // arrange
-        vm.warp(block.timestamp + INTERVAL + 1);
-        vm.roll(block.number + 1);
-
+    function testCheckUpKeepReturnsFalseWhenItHasNoBalance()
+        external
+        timePassed
+    {
         // act
         (bool upkeepNeeded, ) = raffle.checkUpkeep("");
 
@@ -87,13 +90,12 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepReturnsFalseIfRaffleNotOpen() external {
+    function testCheckUpkeepReturnsFalseIfRaffleNotOpen()
+        external
+        raffleEntered
+        timePassed
+    {
         // arrange
-        vm.prank(USER);
-        raffle.enterRaffle{value: ENTRANCE_FEE}();
-
-        vm.warp(block.timestamp + INTERVAL + 1);
-        vm.roll(block.number + 1);
         raffle.performUpkeep("");
 
         // act
@@ -103,12 +105,10 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepReturnsFalseIfEnoughTimeHasntPassed() external {
-        // arrange
-        vm.warp(block.timestamp + INTERVAL - 1); ///@dev not starting at 0 to prevent underflow
-        vm.prank(USER);
-        raffle.enterRaffle{value: ENTRANCE_FEE}();
-
+    function testCheckUpkeepReturnsFalseIfEnoughTimeHasntPassed()
+        external
+        raffleEntered
+    {
         // act
         (bool upkeepNeeded, ) = raffle.checkUpkeep("");
 
@@ -116,18 +116,76 @@ contract RaffleTest is Test {
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepReturnsTrueWhenParametersAreGood() external {
-        // arrange
-        vm.prank(USER);
-        raffle.enterRaffle{value: ENTRANCE_FEE}();
-
-        vm.warp(block.timestamp + INTERVAL + 1);
-        vm.roll(block.number + 1);
-
+    function testCheckUpkeepReturnsTrueWhenParametersAreGood()
+        external
+        raffleEntered
+        timePassed
+    {
         // act
         (bool upkeepNeeded, ) = raffle.checkUpkeep("");
 
         // assert
         assert(upkeepNeeded);
     }
+
+    /************************************************************** */
+    /********************* .performUpkeep() *************************/
+    /************************************************************** */
+
+    function testPerformUpkeepRunsWhenUpkeepNeeded()
+        external
+        raffleEntered
+        timePassed
+    {
+        // act
+        raffle.performUpkeep("");
+    }
+
+    function testPerformUpkeepRevertsIfUpkeepNotNeeded() external {
+        // arrange
+        uint256 contractBalance = address(raffle).balance;
+        Raffle.State state = raffle.getState();
+
+        // act
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Raffle.Raffle__UpKeepNotNeeded.selector,
+                contractBalance,
+                state
+            )
+        );
+        raffle.performUpkeep("");
+    }
+
+    function testPerformUpkeepEmitsWinnerRequestedEventWithRequestId()
+        external
+        raffleEntered
+        timePassed
+    {
+        // act
+        vm.recordLogs(); // save all event logs
+        raffle.performUpkeep(""); // => should emit WinnerRequested event
+
+        // assert
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 requestId = logs[1].topics[1]; // 0 is the event signature, 1 is the requestId (first topic)
+
+        assert(uint256(requestId) > 0);
+    }
+
+    function testPerformUpkeepChangesStateToCalculating()
+        external
+        raffleEntered
+        timePassed
+    {
+        // act
+        raffle.performUpkeep("");
+
+        // assert
+        assert(raffle.getState() == Raffle.State.Calculating);
+    }
+
+    /************************************************************** */
+    /********************* .fulfillRandomWords() ********************/
+    /************************************************************** */
 }
