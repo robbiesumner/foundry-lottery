@@ -9,9 +9,10 @@ import {CreateSubscription, FundSubscription, AddConsumer} from "./Interactions.
 contract DeployRaffle is Script {
     uint256 public constant ENTRANCE_FEE = 0.1 ether;
     uint256 public constant INTERVAL = 30 seconds;
+    HelperConfig public helperConfig;
 
     function run() external returns (Raffle) {
-        HelperConfig helperConfig = new HelperConfig();
+        helperConfig = new HelperConfig();
         (
             address vrfCoordinator,
             bytes32 keyHash,
@@ -52,6 +53,6 @@ contract DeployRaffle is Script {
             subscriptionId
         );
 
-        return raffle;
+        return (raffle);
     }
 }
