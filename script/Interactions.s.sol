@@ -10,7 +10,7 @@ import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 contract CreateSubscription is Script {
     function createSubscriptionUsingNetworkConfig() internal returns (uint64) {
         HelperConfig helperConfig = new HelperConfig();
-        (address vrfCoordinator, , , , ) = helperConfig.activeConfig();
+        (address vrfCoordinator, , , , , ) = helperConfig.activeConfig();
         return createSubscription(vrfCoordinator);
     }
 
@@ -39,7 +39,8 @@ contract FundSubscription is Script {
             ,
             uint64 subscriptionId,
             ,
-            address linkToken
+            address linkToken,
+
         ) = helperConfig.activeConfig();
         fundSubscription(vrfCoordinator, subscriptionId, linkToken);
     }
@@ -78,12 +79,13 @@ contract AddConsumer is Script {
     function addConsumer(
         address raffle,
         address vrfCoordinator,
-        uint64 subscriptionId
+        uint64 subscriptionId,
+        uint256 deployerKey
     ) public {
         console.log("Adding consumer on chain.id: ", block.chainid);
         console.log("Adding consumer to raffle: ", raffle);
         console.log("Adding consumer with subscriptionId: ", subscriptionId);
-        vm.startBroadcast();
+        vm.startBroadcast(deployerKey);
         VRFCoordinatorV2Mock(vrfCoordinator).addConsumer(
             subscriptionId,
             raffle
@@ -93,9 +95,15 @@ contract AddConsumer is Script {
 
     function addConsumerUsingNetworkConfig(address raffle) internal {
         HelperConfig helperConfig = new HelperConfig();
-        (address vrfCoordinator, , uint64 subscriptionId, , ) = helperConfig
-            .activeConfig();
-        addConsumer(raffle, vrfCoordinator, subscriptionId);
+        (
+            address vrfCoordinator,
+            ,
+            uint64 subscriptionId,
+            ,
+            ,
+            uint256 deployerKey
+        ) = helperConfig.activeConfig();
+        addConsumer(raffle, vrfCoordinator, subscriptionId, deployerKey);
     }
 
     function run() external {

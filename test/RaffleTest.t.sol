@@ -26,7 +26,7 @@ contract RaffleTest is Test {
         // get deployment settings
         ENTRANCE_FEE = deployRaffle.ENTRANCE_FEE();
         INTERVAL = deployRaffle.INTERVAL();
-        (VRFCOORDINATOR, , , , ) = deployRaffle.helperConfig().activeConfig();
+        (VRFCOORDINATOR, , , , , ) = deployRaffle.helperConfig().activeConfig();
 
         vm.deal(USER, ENOUGH_BALANCE);
     }
