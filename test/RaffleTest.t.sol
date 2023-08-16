@@ -193,9 +193,16 @@ contract RaffleTest is Test {
     /********************* .fulfillRandomWords() ********************/
     /************************************************************** */
 
+    modifier onlyAnvil() {
+        if (block.chainid != 31337) {
+            return;
+        }
+        _;
+    }
+
     function testFulfillRandomWordsCanOnlyBeCalledAfterPerformUpkeep(
         uint256 randomRequestId
-    ) external raffleEntered timePassed {
+    ) external raffleEntered timePassed onlyAnvil {
         // arrange
         vm.expectRevert("nonexistent request");
         VRFCoordinatorV2Mock(VRFCOORDINATOR).fulfillRandomWords(
@@ -208,6 +215,7 @@ contract RaffleTest is Test {
         external
         raffleEntered
         timePassed
+        onlyAnvil
     {
         // arrange
         uint256 additonalEntrants = 10;

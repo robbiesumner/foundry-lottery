@@ -10,15 +10,17 @@ import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 contract CreateSubscription is Script {
     function createSubscriptionUsingNetworkConfig() internal returns (uint64) {
         HelperConfig helperConfig = new HelperConfig();
-        (address vrfCoordinator, , , , , ) = helperConfig.activeConfig();
-        return createSubscription(vrfCoordinator);
+        (address vrfCoordinator, , , , , uint256 deployerKey) = helperConfig
+            .activeConfig();
+        return createSubscription(vrfCoordinator, deployerKey);
     }
 
     function createSubscription(
-        address vrfCoordinator
+        address vrfCoordinator,
+        uint256 deployerKey
     ) public returns (uint64 subId) {
         console.log("Creating subscription on chain.id: ", block.chainid);
-        vm.startBroadcast();
+        vm.startBroadcast(deployerKey);
         subId = VRFCoordinatorV2Mock(vrfCoordinator).createSubscription();
         vm.stopBroadcast();
         console.log("Created subscription with id: ", subId);
@@ -40,20 +42,26 @@ contract FundSubscription is Script {
             uint64 subscriptionId,
             ,
             address linkToken,
-
+            uint256 deployerKey
         ) = helperConfig.activeConfig();
-        fundSubscription(vrfCoordinator, subscriptionId, linkToken);
+        fundSubscription(
+            vrfCoordinator,
+            subscriptionId,
+            linkToken,
+            deployerKey
+        );
     }
 
     function fundSubscription(
         address vrfCoordinator,
         uint64 subscriptionId,
-        address linkToken
+        address linkToken,
+        uint256 deployerKey
     ) public {
         console.log("Funding subscription on chain.id: ", block.chainid);
         console.log("Funding subscription with id: ", subscriptionId);
         if (block.chainid == 31337) {
-            vm.startBroadcast();
+            vm.startBroadcast(deployerKey);
             VRFCoordinatorV2Mock(vrfCoordinator).fundSubscription(
                 subscriptionId,
                 FUND_AMOUNT
